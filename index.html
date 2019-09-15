@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <title>Trip Planner</title>
+    <link rel="stylesheet" href="">
+    <style>
+        * {
+            font-family: sans-serif;
+        }
+
+        .tabContent {
+            border-collapse: collapse;
+            margin: 25px 0;
+            margin-left: auto;
+            margin-right: auto;
+            min-width: 1225px;
+            font-size: 0.7em;
+            border-radius: 5px 5px 0 0;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+        }
+
+        th[colspan]:not([colspan="1"]) {
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        .tabContent th {
+            padding: 3px 15px;
+        }
+
+        .tabContent td {
+            padding: 12px 15px;
+        }
+
+        .tabFlightContent thead tr {
+            background-color: #009879;
+            color: #ffffff;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .tabFlightContent tbody tr {
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .tabFlightContent tbody tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+
+        .tabFlightContent tbody tr:last-of-type {
+            border-bottom: 2px solid #009879;
+        }
+
+        .tabTripContent thead tr {
+            background-color: #3948c4;
+            color: #ffffff;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .tabTripContent tbody tr {
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .tabTripContent tbody tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+
+        .tabTripContent tbody tr:last-of-type {
+            border-bottom: 2px solid #3948c4;
+        }
+
+        .tabHotelContent thead tr {
+            background-color: #bf1d91;
+            color: #ffffff;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .tabHotelContent tbody tr {
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .tabHotelContent tbody tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+
+        .tabHotelContent tbody tr:last-of-type {
+            border-bottom: 2px solid #bf1d91;
+        }
+
+        #currentCountry {
+            float: left;
+        }
+
+        #currentDate {
+            float: right;
+        }
+
+        .tabHeaderContent tbody tr {
+            background-color: #747580;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        #map {
+            height: 400px;
+            width: 1150px;
+            margin: 25px 0;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn_map {
+            float: right;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="mainContainer">
+        <div>
+            <table class="tabContent tabHeaderContent">
+                <tbody>
+                    <tr>
+                        <td><span id="currentCountry">Malaysia</span></td>
+                        <td><span></span><select id="currentDate">
+                                <option value="all">All</option>
+                                <option value="yesterday">yesterday</option>
+                                <option value="today">today</option>
+                                <option value="tomorrow">tomorrow</option>
+                                <option value="day_after_tomorrow">day_after</option>
+                            </select></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="content"></div>
+        <div id="map"></div>
+    </div>
+    <script>
+        available_dates = [];
+
+        function buildDate(dateToProcess) {
+            var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            var dayName = days[dateToProcess.getDay()];
+            var day = dateToProcess.getDate();
+            var month = months[dateToProcess.getMonth()];
+            var year = dateToProcess.getFullYear();
+            var processed_date = dayName + " " + day + '-' + month + "-" + year;
+            return processed_date;
+        }
+
+        function getCurrentDate() {
+            var d = new Date();
+            d.setDate(d.getDate() - 1);
+            available_dates.push(buildDate(d));
+            d.setDate(d.getDate() + 1);
+            available_dates.push(buildDate(d));
+            d.setDate(d.getDate() + 1);
+            available_dates.push(buildDate(d));
+            d.setDate(d.getDate() + 1);
+            available_dates.push(buildDate(d));
+        }
+
+        function setCurrentDate() {
+            getCurrentDate();
+            $('#currentDate option:contains("yesterday")').text(available_dates[0]);
+            $('#currentDate option:contains("today")').text('Sat 28-Dec-2019');
+            $('#currentDate option:contains("tomorrow")').text(available_dates[2]);
+            $('#currentDate option:contains("day_after")').text(available_dates[3]);
+            $('#currentDate').val("today");
+        }
+        setCurrentDate();
+        $(document).ready(function() {
+            var old_booking_type;
+            var isTabCreated;
+
+            $("#content").html('');
+            var current_date = $("#currentDate option:selected").html();
+            $.ajax({
+                url: 'https://raw.githubusercontent.com/Abhijit0904/TV/master/data.json',
+                dataType: 'json',
+                type: 'get',
+                cache: false,
+                success: function(data) {
+                    $(data.Activities).each(function(index, value) {
+                        if (current_date === value['Date']) {
+                            buildTable(index, value);
+                        }
+                    })
+                }
+            });
+
+            $("#currentDate").change(function() {
+                $("#content").html('');
+                var current_date = $("#currentDate option:selected").html();
+                $.ajax({
+                    url: 'https://raw.githubusercontent.com/Abhijit0904/TV/master/data.json',
+                    dataType: 'json',
+                    type: 'get',
+                    cache: false,
+                    success: function(data) {
+                        $(data.Activities).each(function(index, value) {
+                            if ((current_date === value['Date']) || current_date === "All") {
+                                buildTable(index, value);
+                            }
+                        })
+                    }
+                });
+            });
+
+            function buildTable(index, value) {
+                if (value["Booking Type"] === "Flight") {
+                    createFlightTab(index, value);
+                }
+                if (value["Booking Type"] === "Hotel") {
+                    createHotelTab(index, value);
+                }
+                if (value["Booking Type"] === "Other") {
+                    createOtherTab(index, value);
+                }
+            }
+
+            function createFlightTab(index, value) {
+                var open_tab = '<table class="tabContent tabFlightContent" id="tabFlight"><thead><tr><th colspan="10">Flight Details</th></tr><tr><th>Date</th><th>Booking #</th><th>Description</th><th>Country From</th><th>Airport From</th><th>Departure</th><th>Country To</th><th>Airport To</th><th>Arrival</th><th style="float:right;">Google Map</th></tr></thead><tbody>';
+                var row = '<tr><td>' + value["Date"] + '</td><td>' + value["Booking #"] + '</td><td>' + value["Description"] + '</td><td>' + value["Country From"] + '</td><td>' + value["Airport From"] + '</td><td>' + value["Departure"] + '</td><td>' + value["Country To"] + '</td><td>' + value["Airport To"] + '</td><td>' + value["Arrival"] + '</td><td>' + '<button type="button" id="map' + index + '" class="btn_map" onclick="viewMap(this)">View</button>' + '</td></tr>';
+                $("#content").html($("#content").html() + open_tab + row + '</tbody></table>');
+            }
+
+            function createHotelTab(index, value) {
+                var open_tab = '<table class="tabContent tabHotelContent" id="tabHotel"><thead><tr><th colspan="7">Hotel Details</th></tr><tr><th>Date</th><th>Booking #</th><th>Description</th><th>Hotel Address</th><th>Check-In</th><th>Check-Out</th><th style="float:right;">Google Map</th></tr></thead><tbody>';
+                var row = '<tr><td>' + value["Date"] + '</td><td>' + value["Booking #"] + '</td><td>' + value["Description"] + '</td><td>' + value["Hotel Address"] + '</td><td>' + value["Check-In"] + '</td><td>' + value["Check-Out"] + '</td><td>' + '<button type="button" id="map' + index + '" class="btn_map" onclick="viewMap(this)">View</button>' + '</td></tr>';
+                $("#content").html($("#content").html() + open_tab + row + '</tbody></table>');
+            }
+
+            function createOtherTab(index, value) {
+                var open_tab = '<table class="tabContent tabTripContent" id="tabTrip"><thead><tr><th colspan="9">Local Trip Details</th></tr><tr><th>Date</th><th>Booking #</th><th>Description</th><th>From</th><th>To</th><th>Transport</th><th>Time Start</th><th>Time End</th><th style="float:right;">Google Map</th></tr></thead><tbody>';
+                var row = '<tr><td>' + value["Date"] + '</td><td>' + value["Booking #"] + '</td><td>' + value["Description"] + '</td><td>' + value["From"] + '</td><td>' + value["To"] + '</td><td>' + value["Transport"] + '</td><td>' + value["Time Start"] + '</td><td>' + value["Time End"] + '</td><td>' + '<button type="button" id="map' + index + '" class="btn_map" onclick="viewMap(this)">View</button>' + '</td></tr>';
+                $("#content").html($("#content").html() + open_tab + row + '</tbody></table>');
+            }
+
+        });
+
+    </script>
+    <script>
+        function viewMap(context) {
+            var id = context.id;
+            id = id.replace("map", "");
+            var source;
+            var current;
+            var target;
+            $.ajax({
+                url: 'https://raw.githubusercontent.com/Abhijit0904/TV/master/data.json',
+                dataType: 'json',
+                type: 'get',
+                cache: false,
+                success: function(data) {
+                    $(data.Activities).each(function(index, value) {
+                        if (index == id) {
+                            if (value["Booking Type"] === "Flight") {
+                                source = value["Airport From"];
+                                target = value["Airport To"];
+                                console.log("Travelling from " + source + " to " + target);
+                            }
+                            if (value["Booking Type"] === "Hotel") {
+                                target = value["Description"];
+                                console.log("Hotel Destination: " + target);
+                            }
+                            if (value["Booking Type"] === "Other") {
+                                target = value["Description"];
+                            }
+                        }
+                    })
+                }
+            });
+        }
+
+    </script>
+    <script>
+        function initMap() {
+            var location = {
+                lat: -25,
+                lng: 300
+            };
+            var map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 4,
+                center: location
+            });
+            var marker = new google.maps.Marker({
+                position: location,
+                map: map
+            })
+        }
+
+    </script>
+    <script>
+        var = 'AIzaSyAQVw3YZq81WbO4OLXexgo6p7L5m8i_r-E';
+
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=&callback=initMap" type="text/javascript"></script>
+</body>
+
+</html>
